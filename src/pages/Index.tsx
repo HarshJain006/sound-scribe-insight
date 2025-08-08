@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -84,6 +85,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+      {/* Header with Theme Toggle */}
+      <header className="container mx-auto px-4 py-4 flex justify-end">
+        <ThemeToggle />
+      </header>
+
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-12 fade-in">
