@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
@@ -85,9 +86,24 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
-      {/* Header with Theme Toggle */}
-      <header className="container mx-auto px-4 py-4 flex justify-end">
-        <ThemeToggle />
+      {/* Header with Navigation */}
+      <header className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold gradient-text">LifeVibe</h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link to="/signin">
+            <Button variant="ghost" className="text-foreground hover:bg-muted">
+              Sign In
+            </Button>
+          </Link>
+          <Link to="/login">
+            <Button className="bg-gradient-primary hover:shadow-glow">
+              Get Started
+            </Button>
+          </Link>
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Hero Section */}
