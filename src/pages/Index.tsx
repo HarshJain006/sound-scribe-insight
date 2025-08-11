@@ -2,9 +2,11 @@ import { useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare } from "lucide-react";
+import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare, Plus, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,6 +16,8 @@ const Index = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
   const [transcriptionHistory, setTranscriptionHistory] = useState<string[]>([]);
+  const [comments, setComments] = useState<{id: string, text: string, date: string}[]>([]);
+  const [newComment, setNewComment] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -84,6 +88,22 @@ const Index = () => {
     }, 3000);
   };
 
+  const handleSaveComment = () => {
+    if (newComment.trim()) {
+      const comment = {
+        id: Date.now().toString(),
+        text: newComment,
+        date: new Date().toLocaleDateString()
+      };
+      setComments(prev => [comment, ...prev]);
+      setNewComment("");
+      toast({
+        title: "Comment saved",
+        description: "Your note has been saved successfully!",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
       {/* Header with Navigation */}
@@ -118,9 +138,8 @@ const Index = () => {
             <br />
             <span className="text-foreground">Insights</span>
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Capture your day with audio and uncover meaningful insights with vibrant AI analysis. 
-            Transform your daily reflections into actionable wisdom.
+          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+            Turn your daily moments into meaningful insights with AI-powered reflection
           </p>
         </div>
 
@@ -358,13 +377,54 @@ const Index = () => {
               </CardContent>
             </Card>
           )}
-        </div>
 
-        {/* Footer */}
-        <div className="text-center mt-16 py-8 border-t border-border/20">
-          <p className="text-muted-foreground">
-            Designed with ❤️ by Harsh Jain • Powered by AI
-          </p>
+          {/* Comments Section */}
+          <Card className="glass float shadow-medium border-white/20 mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="w-5 h-5 text-muted-foreground" />
+                Quick Notes
+              </CardTitle>
+              <CardDescription>
+                Save your thoughts and reminders
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Add a quick note or reminder..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="flex-1 bg-background/50 border-white/20 resize-none"
+                  rows={3}
+                />
+                <Button 
+                  onClick={handleSaveComment}
+                  size="sm"
+                  className="self-end"
+                  disabled={!newComment.trim()}
+                >
+                  <Save className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {comments.length > 0 && (
+                <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
+                  {comments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="p-3 bg-muted/50 rounded-lg border border-border/50"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs text-muted-foreground">{comment.date}</span>
+                      </div>
+                      <p className="text-sm">{comment.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
