@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare, Plus, Save } from "lucide-react";
+import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare, Plus, Save, Calendar, History } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -90,16 +90,27 @@ const Index = () => {
 
   const handleSaveComment = () => {
     if (newComment.trim()) {
+      const today = new Date().toLocaleDateString();
       const comment = {
         id: Date.now().toString(),
         text: newComment,
-        date: new Date().toLocaleDateString()
+        date: today
       };
       setComments(prev => [comment, ...prev]);
       setNewComment("");
+      
+      // Auto-save to localStorage by date
+      const existingData = JSON.parse(localStorage.getItem(`lifevibe-${today}`) || '{}');
+      const updatedData = {
+        ...existingData,
+        comments: [comment, ...(existingData.comments || [])],
+        lastUpdated: Date.now()
+      };
+      localStorage.setItem(`lifevibe-${today}`, JSON.stringify(updatedData));
+      
       toast({
-        title: "Comment saved",
-        description: "Your note has been saved successfully!",
+        title: "Note saved",
+        description: "Your note has been saved for today!",
       });
     }
   };
@@ -112,6 +123,18 @@ const Index = () => {
           <h2 className="text-xl font-bold gradient-text">LifeVibe</h2>
         </div>
         <div className="flex items-center gap-3">
+          <Link to="/calendar">
+            <Button variant="ghost" className="text-foreground hover:bg-muted">
+              <Calendar className="w-4 h-4 mr-2" />
+              Calendar
+            </Button>
+          </Link>
+          <Link to="/history">
+            <Button variant="ghost" className="text-foreground hover:bg-muted">
+              <History className="w-4 h-4 mr-2" />
+              History
+            </Button>
+          </Link>
           <Link to="/signin">
             <Button variant="ghost" className="text-foreground hover:bg-muted">
               Sign In
