@@ -116,7 +116,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background/95" style={{ background: 'var(--gradient-background)' }}>
       {/* Header with Navigation */}
       <header className="container mx-auto px-4 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
@@ -152,10 +152,6 @@ const Index = () => {
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-12 fade-in">
-          <div className="inline-flex items-center gap-2 bg-gradient-primary text-white px-6 py-2 rounded-full text-sm font-medium mb-6 shadow-glow">
-            <Sparkles className="w-4 h-4" />
-            AI-Powered Daily Insights
-          </div>
           <h1 className="text-5xl md:text-7xl font-heading font-bold mb-6">
             <span className="gradient-text">LifeVibe</span>
             <br />
