@@ -116,7 +116,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background/95" style={{ background: 'var(--gradient-background)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--gradient-background)' }}>
       {/* Header with Navigation */}
       <header className="container mx-auto px-4 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
