@@ -7,7 +7,7 @@ import { ArrowLeft, History as HistoryIcon, Lock, Calendar, MessageSquare, Trend
 
 const History = () => {
   // Mock user state - replace with actual auth state when Supabase is connected
-  const isSignedIn = false;
+  const isSignedIn = true;
 
   if (!isSignedIn) {
     return (

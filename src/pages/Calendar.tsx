@@ -6,7 +6,7 @@ import { ArrowLeft, Calendar as CalendarIcon, Lock } from 'lucide-react';
 
 const Calendar = () => {
   // Mock user state - replace with actual auth state when Supabase is connected
-  const isSignedIn = false;
+  const isSignedIn = true;
 
   if (!isSignedIn) {
     return (
