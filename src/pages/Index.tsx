@@ -9,6 +9,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare, Plus, Save, Calendar, History } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import TodoList from "@/components/TodoList";
+import { extractTasksFromTranscription, ExtractedTask } from "@/utils/audioTaskExtractor";
 
 const Index = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -18,6 +20,7 @@ const Index = () => {
   const [transcriptionHistory, setTranscriptionHistory] = useState<string[]>([]);
   const [comments, setComments] = useState<{id: string, text: string, date: string}[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [todos, setTodos] = useState<ExtractedTask[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -72,18 +75,23 @@ const Index = () => {
         todos: ["Review tomorrow's presentation", "Follow up on client feedback", "Plan weekend project"],
         efficiency: 85,
         efficiencyReason: "Stayed focused and minimized distractions",
-        transcription: "Today was a productive day. I managed to complete most of my tasks and had some great insights.",
+        transcription: "Today was a productive day. I managed to complete most of my tasks and had some great insights. I have a meeting on 28th March 2025 with the client. Need to review the presentation tomorrow and follow up on client feedback this week.",
         feedback: "You're doing amazing! 🌟 Your focus today was impressive. Tomorrow, try taking short breaks to maintain that energy level.",
         improvement: "Consider time-blocking your schedule for even better productivity"
       };
       
       setAnalysis(mockAnalysis);
       setTranscriptionHistory(prev => [...prev, mockAnalysis.transcription]);
+      
+      // Extract tasks from transcription
+      const extractedTasks = extractTasksFromTranscription(mockAnalysis.transcription);
+      setTodos(prev => [...prev, ...extractedTasks]);
+      
       setIsAnalyzing(false);
       
       toast({
         title: "Analysis complete!",
-        description: "Your day has been analyzed with insights",
+        description: `Your day has been analyzed with insights${extractedTasks.length > 0 ? ` and ${extractedTasks.length} task(s) added to your to-do list` : ''}`,
       });
     }, 3000);
   };
@@ -113,6 +121,28 @@ const Index = () => {
         description: "Your note has been saved for today!",
       });
     }
+  };
+
+  const handleTodoToggle = (id: string) => {
+    setTodos(prev => prev.map(todo => 
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    ));
+  };
+
+  const handleTodoRemove = (id: string) => {
+    setTodos(prev => prev.filter(todo => todo.id !== id));
+  };
+
+  const handleTodoAdd = (text: string, date: Date) => {
+    const newTodo: ExtractedTask = {
+      id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      text,
+      date,
+      priority: 'medium',
+      source: 'audio', // Will be 'manual' when we add manual creation
+      completed: false
+    };
+    setTodos(prev => [...prev, newTodo]);
   };
 
   return (
@@ -396,6 +426,16 @@ const Index = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Smart To-Do List Section */}
+          <div className="mt-8">
+            <TodoList 
+              todos={todos}
+              onToggle={handleTodoToggle}
+              onRemove={handleTodoRemove}
+              onAdd={handleTodoAdd}
+            />
+          </div>
 
           {/* Comments Section */}
           <Card className="glass float shadow-medium border-white/20 mt-6">

@@ -1,12 +1,64 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Calendar as CalendarIcon, Lock } from 'lucide-react';
+import CalendarView from '@/components/CalendarView';
+import { addDays, addWeeks } from 'date-fns';
+
+interface CalendarTask {
+  id: string;
+  text: string;
+  date: Date;
+  completed: boolean;
+  priority: 'low' | 'medium' | 'high';
+}
 
 const Calendar = () => {
   // Mock user state - replace with actual auth state when Supabase is connected
   const isSignedIn = true;
+  
+  // Mock tasks data - in real app, this would come from Supabase
+  const [tasks, setTasks] = useState<CalendarTask[]>([
+    {
+      id: '1',
+      text: 'Team meeting with stakeholders',
+      date: new Date(),
+      completed: false,
+      priority: 'high'
+    },
+    {
+      id: '2', 
+      text: 'Review presentation slides',
+      date: addDays(new Date(), 1),
+      completed: false,
+      priority: 'medium'
+    },
+    {
+      id: '3',
+      text: 'Follow up on client feedback',
+      date: addDays(new Date(), 2),
+      completed: true,
+      priority: 'high'
+    },
+    {
+      id: '4',
+      text: 'Plan weekend project',
+      date: addWeeks(new Date(), 1),
+      completed: false,
+      priority: 'low'
+    }
+  ]);
+
+  const handleTaskSelect = (task: CalendarTask) => {
+    console.log('Selected task:', task);
+    // Handle task selection (could open a modal, navigate, etc.)
+  };
+
+  const handleDateSelect = (date: Date) => {
+    console.log('Selected date:', date);
+    // Handle date selection
+  };
 
   if (!isSignedIn) {
     return (
@@ -43,9 +95,9 @@ const Calendar = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-dark">
+    <div className="min-h-screen" style={{ background: 'var(--gradient-background)' }}>
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
@@ -55,69 +107,17 @@ const Calendar = () => {
               </Link>
               <div className="flex items-center gap-2">
                 <CalendarIcon className="h-8 w-8 text-primary" />
-                <h1 className="text-3xl font-bold gradient-text">Calendar View</h1>
+                <h1 className="text-3xl font-bold gradient-text">Smart Calendar</h1>
               </div>
             </div>
           </div>
 
-          {/* Calendar Grid */}
-          <Card className="glass-effect border-white/10">
-            <CardHeader>
-              <CardTitle>Your Daily Journey</CardTitle>
-              <CardDescription>
-                Track your daily reflections and insights over time
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-7 gap-2 mb-4">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="text-center text-sm font-medium text-muted-foreground p-2">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: 35 }, (_, i) => {
-                  const day = i - 6 + new Date().getDate();
-                  const isToday = day === new Date().getDate();
-                  const hasData = Math.random() > 0.7; // Mock data
-                  
-                  return (
-                    <div
-                      key={i}
-                      className={`aspect-square p-2 rounded-lg border text-center text-sm cursor-pointer transition-all hover:scale-105 ${
-                        isToday 
-                          ? 'bg-primary text-primary-foreground border-primary' 
-                          : hasData 
-                            ? 'bg-accent/50 border-accent text-accent-foreground' 
-                            : 'bg-muted/30 border-border/20 text-muted-foreground'
-                      }`}
-                    >
-                      {day > 0 && day <= 31 ? day : ''}
-                      {hasData && day > 0 && day <= 31 && (
-                        <div className="w-1 h-1 bg-current rounded-full mx-auto mt-1" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              
-              <div className="mt-6 flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-primary rounded" />
-                  <span className="text-muted-foreground">Today</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-accent rounded" />
-                  <span className="text-muted-foreground">Has Activity</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-muted rounded" />
-                  <span className="text-muted-foreground">No Activity</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Split-Screen Calendar Layout */}
+          <CalendarView 
+            tasks={tasks}
+            onTaskSelect={handleTaskSelect}
+            onDateSelect={handleDateSelect}
+          />
         </div>
       </div>
     </div>
