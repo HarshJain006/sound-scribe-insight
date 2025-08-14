@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Eye, List, Grid } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, isSameDay } from 'date-fns';
 
 interface CalendarTask {
   id: string;
@@ -26,11 +28,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskSelect, onDate
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [isScrolling, setIsScrolling] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Get complete calendar grid (6 weeks = 42 days) including adjacent month days
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
-  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const calendarStart = startOfWeek(monthStart);
+  const calendarEnd = endOfWeek(monthEnd);
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => isSameDay(task.date, date));
@@ -59,8 +65,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskSelect, onDate
   };
 
   const handleTodayClick = () => {
-    setCurrentDate(new Date());
-    setSelectedDate(new Date());
+    const today = new Date();
+    setCurrentDate(today);
+    setSelectedDate(today);
+  };
+
+  const handleDatePickerSelect = (date: Date | undefined) => {
+    if (date) {
+      setCurrentDate(date);
+      setSelectedDate(date);
+      onDateSelect?.(date);
+      setIsDatePickerOpen(false);
+    }
   };
 
   const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
@@ -71,10 +87,28 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskSelect, onDate
       <Card className="glass shadow-medium border-white/20 flex flex-col">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-primary" />
-              {format(currentDate, 'MMMM yyyy')}
-            </CardTitle>
+            <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2 text-left justify-start p-2 h-auto">
+                  <CalendarIcon className="w-5 h-5 text-primary" />
+                  <CardTitle className="text-xl">
+                    {format(currentDate, 'MMMM yyyy')}
+                  </CardTitle>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-auto p-6">
+                <DialogHeader>
+                  <DialogTitle>Select Date</DialogTitle>
+                </DialogHeader>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate || currentDate}
+                  onSelect={handleDatePickerSelect}
+                  initialFocus
+                  className="rounded-md border"
+                />
+              </DialogContent>
+            </Dialog>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -144,6 +178,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskSelect, onDate
               const dayTasks = getTasksForDate(day);
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isDayToday = isToday(day);
+              const isCurrentMonth = isSameMonth(day, currentDate);
               
               return (
                 <div
@@ -153,17 +188,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskSelect, onDate
                     group aspect-square p-2 rounded-lg border text-center text-sm cursor-pointer 
                     transition-all duration-300 hover:scale-110 hover:shadow-soft hover:-translate-y-1
                     transform-gpu will-change-transform
-                    ${isDayToday 
-                      ? 'bg-primary text-primary-foreground border-primary shadow-glow animate-pulse' 
-                      : isSelected
-                        ? 'bg-accent text-accent-foreground border-accent scale-105 shadow-medium'
-                        : dayTasks.length > 0
-                          ? 'bg-muted border-border hover:bg-muted/80 hover:border-primary/50'
-                          : 'bg-card/50 border-border/30 hover:bg-card/80 hover:border-accent/30'
+                    ${!isCurrentMonth 
+                      ? 'text-muted-foreground/50 bg-muted/20 border-border/10' 
+                      : isDayToday 
+                        ? 'bg-primary text-primary-foreground border-primary shadow-glow animate-pulse' 
+                        : isSelected
+                          ? 'bg-accent text-accent-foreground border-accent scale-105 shadow-medium'
+                          : dayTasks.length > 0
+                            ? 'bg-muted border-border hover:bg-muted/80 hover:border-primary/50'
+                            : 'bg-card/50 border-border/30 hover:bg-card/80 hover:border-accent/30'
                     }
                   `}
                 >
-                  <div className="font-medium group-hover:scale-110 transition-transform duration-200">
+                  <div className={`font-medium group-hover:scale-110 transition-transform duration-200 ${!isCurrentMonth ? 'opacity-50' : ''}`}>
                     {format(day, 'd')}
                   </div>
                   {dayTasks.length > 0 && (
