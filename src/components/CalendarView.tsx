@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Eye, List, Grid } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, isSameDay, setMonth, setYear, getMonth, getYear } from 'date-fns';
 
 interface CalendarTask {
   id: string;
@@ -79,6 +80,35 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskSelect, onDate
     }
   };
 
+  const handleMonthChange = (monthIndex: string) => {
+    const newDate = setMonth(currentDate, parseInt(monthIndex));
+    setCurrentDate(newDate);
+  };
+
+  const handleYearChange = (year: string) => {
+    const newDate = setYear(currentDate, parseInt(year));
+    setCurrentDate(newDate);
+  };
+
+  // Generate year options (current year ± 10 years)
+  const currentYear = getYear(new Date());
+  const yearOptions = Array.from({ length: 21 }, (_, i) => currentYear - 10 + i);
+  
+  const monthOptions = [
+    { value: '0', label: 'January' },
+    { value: '1', label: 'February' },
+    { value: '2', label: 'March' },
+    { value: '3', label: 'April' },
+    { value: '4', label: 'May' },
+    { value: '5', label: 'June' },
+    { value: '6', label: 'July' },
+    { value: '7', label: 'August' },
+    { value: '8', label: 'September' },
+    { value: '9', label: 'October' },
+    { value: '10', label: 'November' },
+    { value: '11', label: 'December' },
+  ];
+
   const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
 
   return (
@@ -145,6 +175,36 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskSelect, onDate
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
+            
+            {/* Month and Year Selectors */}
+            <div className="flex items-center gap-2">
+              <Select value={getMonth(currentDate).toString()} onValueChange={handleMonthChange}>
+                <SelectTrigger className="w-32 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map(month => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={getYear(currentDate).toString()} onValueChange={handleYearChange}>
+                <SelectTrigger className="w-20 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {yearOptions.map(year => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-primary rounded-full" />
@@ -155,6 +215,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskSelect, onDate
                 Has Tasks
               </div>
             </div>
+            
             <Button
               variant="ghost"
               size="sm"
