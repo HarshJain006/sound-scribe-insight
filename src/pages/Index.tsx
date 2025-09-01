@@ -6,11 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare, Plus, Save, Calendar, History } from "lucide-react";
+import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare, Plus, Save, Calendar, History, Crown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import TodoList from "@/components/TodoList";
 import { extractTasksFromTranscription, ExtractedTask } from "@/utils/audioTaskExtractor";
+import { useUsageLimits } from "@/hooks/useUsageLimits";
+import LimitDialog from "@/components/LimitDialog";
+import UsageIndicator from "@/components/UsageIndicator";
+import MobileNav from "@/components/MobileNav";
 
 const Index = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -24,7 +28,19 @@ const Index = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Usage limits and premium functionality
+  const { canPerformAction, updateUsage, getRemainingCount } = useUsageLimits();
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
+  const [limitType, setLimitType] = useState<'tasks' | 'transcriptions'>('tasks');
+
   const handleStartRecording = () => {
+    // Check transcription limit before starting
+    if (!canPerformAction('transcriptions')) {
+      setLimitType('transcriptions');
+      setShowLimitDialog(true);
+      return;
+    }
+
     setIsRecording(true);
     toast({
       title: "Recording started",
@@ -85,13 +101,42 @@ const Index = () => {
       
       // Extract tasks from transcription
       const extractedTasks = extractTasksFromTranscription(mockAnalysis.transcription);
-      setTodos(prev => [...prev, ...extractedTasks]);
+      
+      // Check task limit before adding new tasks
+      const tasksToAdd = extractedTasks.filter(task => 
+        !todos.some(todo => todo.text.toLowerCase() === task.text.toLowerCase())
+      );
+      
+      if (tasksToAdd.length > 0) {
+        const remainingTaskSlots = getRemainingCount('tasks');
+        
+        if (remainingTaskSlots < tasksToAdd.length && remainingTaskSlots > 0) {
+          // Add what we can and show warning
+          const tasksWeCanAdd = tasksToAdd.slice(0, remainingTaskSlots);
+          setTodos(prev => [...prev, ...tasksWeCanAdd]);
+          updateUsage('tasks', tasksWeCanAdd.length);
+          toast({
+            title: "Task limit approaching!",
+            description: `Added ${tasksWeCanAdd.length} tasks. Upgrade to Premium for unlimited tasks!`,
+            variant: "destructive",
+          });
+        } else if (remainingTaskSlots === 0) {
+          setLimitType('tasks');
+          setShowLimitDialog(true);
+        } else {
+          setTodos(prev => [...prev, ...tasksToAdd]);
+          updateUsage('tasks', tasksToAdd.length);
+        }
+      }
+
+      // Update transcription usage count
+      updateUsage('transcriptions');
       
       setIsAnalyzing(false);
       
       toast({
         title: "Analysis complete!",
-        description: `Your day has been analyzed with insights${extractedTasks.length > 0 ? ` and ${extractedTasks.length} task(s) added to your to-do list` : ''}`,
+        description: `Your day has been analyzed with insights${tasksToAdd.length > 0 ? ` and ${Math.min(tasksToAdd.length, getRemainingCount('tasks') + tasksToAdd.length)} task(s) added to your to-do list` : ''}`,
       });
     }, 3000);
   };
@@ -134,6 +179,13 @@ const Index = () => {
   };
 
   const handleTodoAdd = (text: string, date: Date) => {
+    // Check task limit before adding
+    if (!canPerformAction('tasks')) {
+      setLimitType('tasks');
+      setShowLimitDialog(true);
+      return;
+    }
+
     const newTodo: ExtractedTask = {
       id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       text,
@@ -143,39 +195,61 @@ const Index = () => {
       completed: false
     };
     setTodos(prev => [...prev, newTodo]);
+    updateUsage('tasks');
   };
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--gradient-background)' }}>
+      {/* Limit Dialog */}
+      <LimitDialog
+        open={showLimitDialog}
+        onOpenChange={setShowLimitDialog}
+        limitType={limitType}
+        currentCount={limitType === 'tasks' ? todos.filter(t => t.date.toISOString().split('T')[0] === new Date().toISOString().split('T')[0]).length : transcriptionHistory.length}
+        maxCount={limitType === 'tasks' ? 7 : 3}
+      />
+
       {/* Header with Navigation */}
-      <header className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="container mx-auto px-4 sm:px-6 py-4 flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-bold gradient-text">LifeVibe</h2>
+          <h2 className="text-xl sm:text-2xl font-bold gradient-text">LifeVibe</h2>
         </div>
-        <div className="flex items-center gap-3">
-          <Link to="/calendar">
-            <Button variant="ghost" className="text-foreground hover:bg-muted">
-              <Calendar className="w-4 h-4 mr-2" />
-              Calendar
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <Link to="/calendar" className="hidden md:block">
+            <Button variant="ghost" className="text-foreground hover:bg-muted text-sm">
+              <Calendar className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden lg:inline">Calendar</span>
             </Button>
           </Link>
-          <Link to="/history">
-            <Button variant="ghost" className="text-foreground hover:bg-muted">
-              <History className="w-4 h-4 mr-2" />
-              History
+          <Link to="/history" className="hidden md:block">
+            <Button variant="ghost" className="text-foreground hover:bg-muted text-sm">
+              <History className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden lg:inline">History</span>
             </Button>
           </Link>
-          <Link to="/signin">
-            <Button variant="ghost" className="text-foreground hover:bg-muted">
+          <Link to="/premium" className="hidden sm:block">
+            <Button variant="ghost" className="text-primary hover:bg-primary/10 bg-primary/5 border border-primary/20 text-sm">
+              <Crown className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden md:inline">Premium</span>
+            </Button>
+          </Link>
+          <Link to="/premium" className="sm:hidden">
+            <Button variant="ghost" size="icon" className="text-primary hover:bg-primary/10 bg-primary/5 border border-primary/20">
+              <Crown className="w-4 h-4" />
+            </Button>
+          </Link>
+          <Link to="/signin" className="hidden lg:block">
+            <Button variant="ghost" className="text-foreground hover:bg-muted text-sm">
               Sign In
             </Button>
           </Link>
-          <Link to="/login">
-            <Button className="bg-gradient-primary hover:shadow-glow">
+          <Link to="/login" className="hidden lg:block">
+            <Button className="bg-gradient-primary hover:shadow-glow text-sm">
               Get Started
             </Button>
           </Link>
           <ThemeToggle />
+          <MobileNav />
         </div>
       </header>
 
@@ -428,7 +502,10 @@ const Index = () => {
           )}
 
           {/* Smart To-Do List Section */}
-          <div className="mt-8">
+          <div className="mt-8 space-y-6">
+            {/* Usage Indicator */}
+            <UsageIndicator />
+            
             <TodoList 
               todos={todos}
               onToggle={handleTodoToggle}
