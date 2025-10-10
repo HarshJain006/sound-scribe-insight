@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Calendar from "./pages/Calendar";
 import History from "./pages/History";
 import Premium from "./pages/Premium";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/history" element={<History />} />
             <Route path="/premium" element={<Premium />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
