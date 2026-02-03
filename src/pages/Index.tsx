@@ -1,31 +1,45 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Mic, Upload, Play, Pause, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare, Plus, Save, Calendar, History, Crown } from "lucide-react";
+import { Mic, Upload, RotateCcw, Sparkles, TrendingUp, CheckCircle, Clock, MessageSquare, Plus, Save, Calendar, History, Crown, Database, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import TodoList from "@/components/TodoList";
+import SpeechRecorder from "@/components/SpeechRecorder";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import UserMenu from "@/components/UserMenu";
 import { extractTasksFromTranscription, ExtractedTask } from "@/utils/audioTaskExtractor";
 import { useUsageLimits } from "@/hooks/useUsageLimits";
 import LimitDialog from "@/components/LimitDialog";
 import UsageIndicator from "@/components/UsageIndicator";
 import MobileNav from "@/components/MobileNav";
+import { useAuth } from "@/contexts/AuthContext";
+import { useGoogleSheets } from "@/hooks/useGoogleSheets";
+import { TodoItem as SheetTodoItem, Note, AnalysisData } from "@/services/googleSheetsService";
+import { format } from "date-fns";
 
 const Index = () => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedAudio, setRecordedAudio] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { 
+    isInitialized, 
+    isLoading: sheetsLoading, 
+    currentDayData,
+    saveTodos,
+    saveNotes,
+    saveAnalysis,
+  } = useGoogleSheets();
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<any>(null);
+  const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
   const [transcriptionHistory, setTranscriptionHistory] = useState<string[]>([]);
-  const [comments, setComments] = useState<{id: string, text: string, date: string}[]>([]);
+  const [comments, setComments] = useState<Note[]>([]);
   const [newComment, setNewComment] = useState("");
   const [todos, setTodos] = useState<ExtractedTask[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentTranscription, setCurrentTranscription] = useState("");
   const { toast } = useToast();
 
   // Usage limits and premium functionality
@@ -33,48 +47,62 @@ const Index = () => {
   const [showLimitDialog, setShowLimitDialog] = useState(false);
   const [limitType, setLimitType] = useState<'tasks' | 'transcriptions'>('tasks');
 
-  const handleStartRecording = () => {
-    // Check transcription limit before starting
+  // Load data from sheets when initialized
+  useEffect(() => {
+    if (currentDayData) {
+      // Convert sheet todos to local format
+      const sheetTodos: ExtractedTask[] = currentDayData.todos.map(todo => ({
+        id: todo.id,
+        text: todo.text,
+        date: new Date(todo.date),
+        completed: todo.completed,
+        priority: todo.priority,
+        source: todo.source,
+      }));
+      setTodos(sheetTodos);
+      setComments(currentDayData.notes);
+      setTranscriptionHistory(currentDayData.transcriptions);
+      if (currentDayData.analysis) {
+        setAnalysis(currentDayData.analysis);
+      }
+    }
+  }, [currentDayData]);
+
+  // Auto-save todos to sheets
+  useEffect(() => {
+    if (user && isInitialized && todos.length > 0) {
+      const today = new Date();
+      const sheetTodos: SheetTodoItem[] = todos.map(todo => ({
+        id: todo.id,
+        text: todo.text,
+        date: format(todo.date, 'yyyy-MM-dd'),
+        completed: todo.completed,
+        priority: todo.priority,
+        source: todo.source,
+        createdAt: new Date().toISOString(),
+      }));
+      saveTodos(today, sheetTodos);
+    }
+  }, [todos, user, isInitialized]);
+
+  const handleTranscriptionComplete = (transcription: string) => {
     if (!canPerformAction('transcriptions')) {
       setLimitType('transcriptions');
       setShowLimitDialog(true);
       return;
     }
-
-    setIsRecording(true);
-    toast({
-      title: "Recording started",
-      description: "Share your thoughts about your day...",
-    });
-  };
-
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    // Simulate recorded audio
-    setRecordedAudio("data:audio/wav;base64,simulated");
+    setCurrentTranscription(transcription);
     toast({
       title: "Recording complete",
       description: "Ready for analysis!",
     });
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setRecordedAudio(url);
+  const handleAnalyze = async () => {
+    if (!currentTranscription) {
       toast({
-        title: "File uploaded",
-        description: `${file.name} is ready for analysis`,
-      });
-    }
-  };
-
-  const handleAnalyze = () => {
-    if (!recordedAudio) {
-      toast({
-        title: "No audio found",
-        description: "Please record or upload audio first",
+        title: "No transcription found",
+        description: "Please record your thoughts first",
         variant: "destructive",
       });
       return;
@@ -82,25 +110,25 @@ const Index = () => {
 
     setIsAnalyzing(true);
     
-    // Simulate analysis
-    setTimeout(() => {
-      const mockAnalysis = {
-        workDone: "Completed 3 important tasks, attended 2 meetings",
-        progress: "Made significant progress on the main project",
-        special: "Had a breakthrough moment with the design concept",
-        todos: ["Review tomorrow's presentation", "Follow up on client feedback", "Plan weekend project"],
+    // Simulate analysis (in real app, this would call an AI API)
+    setTimeout(async () => {
+      const mockAnalysis: AnalysisData = {
+        workDone: "Completed important tasks based on your recording",
+        progress: "Made progress on your goals",
+        special: "Had meaningful insights",
+        todos: ["Review tomorrow's priorities", "Follow up on key items"],
         efficiency: 85,
-        efficiencyReason: "Stayed focused and minimized distractions",
-        transcription: "Today was a productive day. I managed to complete most of my tasks and had some great insights. I have a meeting on 28th March 2025 with the client. Need to review the presentation tomorrow and follow up on client feedback this week.",
-        feedback: "You're doing amazing! 🌟 Your focus today was impressive. Tomorrow, try taking short breaks to maintain that energy level.",
-        improvement: "Consider time-blocking your schedule for even better productivity"
+        efficiencyReason: "Stayed focused and productive",
+        transcription: currentTranscription,
+        feedback: "You're doing great! Keep up the momentum.",
+        improvement: "Consider time-blocking for better focus"
       };
       
       setAnalysis(mockAnalysis);
-      setTranscriptionHistory(prev => [...prev, mockAnalysis.transcription]);
+      setTranscriptionHistory(prev => [...prev, currentTranscription]);
       
       // Extract tasks from transcription
-      const extractedTasks = extractTasksFromTranscription(mockAnalysis.transcription);
+      const extractedTasks = extractTasksFromTranscription(currentTranscription);
       
       // Check task limit before adding new tasks
       const tasksToAdd = extractedTasks.filter(task => 
@@ -111,7 +139,6 @@ const Index = () => {
         const remainingTaskSlots = getRemainingCount('tasks');
         
         if (remainingTaskSlots < tasksToAdd.length && remainingTaskSlots > 0) {
-          // Add what we can and show warning
           const tasksWeCanAdd = tasksToAdd.slice(0, remainingTaskSlots);
           setTodos(prev => [...prev, ...tasksWeCanAdd]);
           updateUsage('tasks', tasksWeCanAdd.length);
@@ -129,41 +156,42 @@ const Index = () => {
         }
       }
 
-      // Update transcription usage count
+      // Save analysis to Google Sheets
+      if (user && isInitialized) {
+        await saveAnalysis(new Date(), mockAnalysis, currentTranscription);
+      }
+
       updateUsage('transcriptions');
-      
       setIsAnalyzing(false);
+      setCurrentTranscription("");
       
       toast({
         title: "Analysis complete!",
-        description: `Your day has been analyzed with insights${tasksToAdd.length > 0 ? ` and ${Math.min(tasksToAdd.length, getRemainingCount('tasks') + tasksToAdd.length)} task(s) added to your to-do list` : ''}`,
+        description: `Your day has been analyzed${tasksToAdd.length > 0 ? ` and ${Math.min(tasksToAdd.length, getRemainingCount('tasks') + tasksToAdd.length)} task(s) added` : ''}`,
       });
     }, 3000);
   };
 
-  const handleSaveComment = () => {
+  const handleSaveComment = async () => {
     if (newComment.trim()) {
-      const today = new Date().toLocaleDateString();
-      const comment = {
+      const comment: Note = {
         id: Date.now().toString(),
         text: newComment,
-        date: today
+        createdAt: new Date().toISOString(),
       };
-      setComments(prev => [comment, ...prev]);
+      
+      const newComments = [comment, ...comments];
+      setComments(newComments);
       setNewComment("");
       
-      // Auto-save to localStorage by date
-      const existingData = JSON.parse(localStorage.getItem(`lifevibe-${today}`) || '{}');
-      const updatedData = {
-        ...existingData,
-        comments: [comment, ...(existingData.comments || [])],
-        lastUpdated: Date.now()
-      };
-      localStorage.setItem(`lifevibe-${today}`, JSON.stringify(updatedData));
+      // Save to Google Sheets
+      if (user && isInitialized) {
+        await saveNotes(new Date(), newComments);
+      }
       
       toast({
         title: "Note saved",
-        description: "Your note has been saved for today!",
+        description: user ? "Synced to your Google Sheet!" : "Saved locally",
       });
     }
   };
@@ -179,7 +207,6 @@ const Index = () => {
   };
 
   const handleTodoAdd = (text: string, date: Date) => {
-    // Check task limit before adding
     if (!canPerformAction('tasks')) {
       setLimitType('tasks');
       setShowLimitDialog(true);
@@ -191,7 +218,7 @@ const Index = () => {
       text,
       date,
       priority: 'medium',
-      source: 'audio', // Will be 'manual' when we add manual creation
+      source: 'manual',
       completed: false
     };
     setTodos(prev => [...prev, newTodo]);
@@ -213,6 +240,15 @@ const Index = () => {
       <header className="container mx-auto px-4 sm:px-6 py-4 flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-2">
           <h2 className="text-xl sm:text-2xl font-bold gradient-text">LifeVibe</h2>
+          {user && isInitialized && (
+            <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
+              <Database className="w-3 h-3 mr-1" />
+              Synced
+            </Badge>
+          )}
+          {user && sheetsLoading && (
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          )}
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <Link to="/calendar" className="hidden md:block">
@@ -238,17 +274,19 @@ const Index = () => {
               <Crown className="w-4 h-4" />
             </Button>
           </Link>
-          <Link to="/signin" className="hidden lg:block">
-            <Button variant="ghost" className="text-foreground hover:bg-muted text-sm">
-              Sign In
-            </Button>
-          </Link>
-          <Link to="/login" className="hidden lg:block">
-            <Button className="bg-gradient-primary hover:shadow-glow text-sm">
-              Get Started
-            </Button>
-          </Link>
           <ThemeToggle />
+          {user ? (
+            <UserMenu />
+          ) : (
+            <>
+              <div className="hidden lg:block">
+                <GoogleSignInButton size="default" />
+              </div>
+              <div className="lg:hidden">
+                <GoogleSignInButton size="sm" />
+              </div>
+            </>
+          )}
           <MobileNav />
         </div>
       </header>
@@ -264,6 +302,14 @@ const Index = () => {
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
             Turn your daily moments into meaningful insights with AI-powered reflection
           </p>
+          {!user && (
+            <div className="mt-6">
+              <p className="text-sm text-muted-foreground mb-3">
+                Sign in with Google to sync your data across devices
+              </p>
+              <GoogleSignInButton size="lg" variant="gradient" />
+            </div>
+          )}
         </div>
 
         {/* Main App Interface */}
@@ -276,96 +322,40 @@ const Index = () => {
               </TabsTrigger>
               <TabsTrigger value="upload" className="flex items-center gap-2">
                 <Upload className="w-4 h-4" />
-                Upload File
+                Text Input
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="record" className="space-y-6">
-              <Card className="glass float shadow-medium border-white/20">
-                <CardHeader className="text-center">
-                  <CardTitle className="flex items-center justify-center gap-2">
-                    <Mic className="w-5 h-5 text-primary" />
-                    Record Your Day
-                  </CardTitle>
-                  <CardDescription>
-                    Share your thoughts, achievements, and reflections
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex justify-center">
-                    <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-300 ${
-                      isRecording 
-                        ? 'bg-gradient-primary shadow-glow animate-pulse' 
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}>
-                      <Button
-                        variant={isRecording ? "secondary" : "ghost"}
-                        size="lg"
-                        onClick={isRecording ? handleStopRecording : handleStartRecording}
-                        className="w-20 h-20 rounded-full"
-                      >
-                        {isRecording ? (
-                          <Pause className="w-8 h-8" />
-                        ) : (
-                          <Mic className="w-8 h-8" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {isRecording && (
-                    <div className="text-center fade-in">
-                      <Badge variant="secondary" className="animate-pulse">
-                        Recording in progress...
-                      </Badge>
-                    </div>
-                  )}
-                  
-                  {recordedAudio && !isRecording && (
-                    <div className="text-center fade-in">
-                      <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Audio ready for analysis
-                      </Badge>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <SpeechRecorder 
+                onTranscriptionComplete={handleTranscriptionComplete}
+                disabled={isAnalyzing}
+              />
             </TabsContent>
 
             <TabsContent value="upload" className="space-y-6">
               <Card className="glass float shadow-medium border-white/20">
                 <CardHeader className="text-center">
                   <CardTitle className="flex items-center justify-center gap-2">
-                    <Upload className="w-5 h-5 text-primary" />
-                    Upload Audio File
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                    Type Your Thoughts
                   </CardTitle>
                   <CardDescription>
-                    Choose a WAV or MP3 file from your device
+                    Write about your day, tasks, and reflections
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div 
-                    className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground mb-2">Drop your audio file here or click to browse</p>
-                    <p className="text-sm text-muted-foreground">Supports WAV and MP3 files</p>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".wav,.mp3"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </div>
-                  
-                  {recordedAudio && (
+                  <Textarea
+                    placeholder="What did you accomplish today? What are your plans? Any meetings or deadlines coming up?"
+                    value={currentTranscription}
+                    onChange={(e) => setCurrentTranscription(e.target.value)}
+                    className="min-h-32 bg-background/50 border-white/20"
+                  />
+                  {currentTranscription && (
                     <div className="mt-4 text-center fade-in">
                       <Badge variant="outline" className="bg-success/10 text-success border-success/20">
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        File uploaded successfully
+                        Ready for analysis
                       </Badge>
                     </div>
                   )}
@@ -378,7 +368,7 @@ const Index = () => {
           <div className="text-center my-8">
             <Button
               onClick={handleAnalyze}
-              disabled={!recordedAudio || isAnalyzing}
+              disabled={!currentTranscription || isAnalyzing}
               size="lg"
               className="bg-gradient-primary hover:shadow-glow transition-all duration-300 px-8 py-4 text-lg font-semibold"
             >
@@ -522,7 +512,7 @@ const Index = () => {
                 Quick Notes
               </CardTitle>
               <CardDescription>
-                Save your thoughts and reminders
+                Save your thoughts and reminders {user ? '(synced to Google Sheets)' : ''}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -552,7 +542,9 @@ const Index = () => {
                       className="p-3 bg-muted/50 rounded-lg border border-border/50"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs text-muted-foreground">{comment.date}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(comment.createdAt), 'MMM d, h:mm a')}
+                        </span>
                       </div>
                       <p className="text-sm">{comment.text}</p>
                     </div>
