@@ -5,7 +5,7 @@ export interface ExtractedTask {
   text: string;
   date: Date;
   priority: 'low' | 'medium' | 'high';
-  source: 'audio';
+  source: 'audio' | 'manual';
   completed: boolean;
 }
 
