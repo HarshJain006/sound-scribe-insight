@@ -1,7 +1,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface GoogleSignInButtonProps {
   className?: string;
@@ -16,19 +17,55 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
 }) => {
   const { signIn, isLoading, isGapiReady } = useAuth();
   const [isSigningIn, setIsSigningIn] = React.useState(false);
+  const { toast } = useToast();
+
+  const clientIdConfigured = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const handleSignIn = async () => {
+    if (!clientIdConfigured) {
+      toast({
+        title: "Configuration Required",
+        description: "Google Client ID is not configured. Please add VITE_GOOGLE_CLIENT_ID to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSigningIn(true);
     try {
       await signIn();
-    } catch (error) {
+      toast({
+        title: "Welcome!",
+        description: "Successfully signed in with Google.",
+      });
+    } catch (error: any) {
       console.error('Sign in error:', error);
+      toast({
+        title: "Sign in failed",
+        description: error?.message || "Unable to sign in. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSigningIn(false);
     }
   };
 
-  const loading = isLoading || isSigningIn || !isGapiReady;
+  const loading = isLoading || isSigningIn || (!isGapiReady && clientIdConfigured);
+
+  // Show error state if client ID is not configured
+  if (!clientIdConfigured) {
+    return (
+      <Button
+        variant="destructive"
+        size={size}
+        onClick={handleSignIn}
+        className={className}
+      >
+        <AlertCircle className="mr-2 h-4 w-4" />
+        Setup Required
+      </Button>
+    );
+  }
 
   return (
     <Button
@@ -60,7 +97,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
           />
         </svg>
       )}
-      {loading ? 'Loading...' : 'Sign in with Google'}
+      {loading ? 'Connecting...' : 'Sign in with Google'}
     </Button>
   );
 };
