@@ -3,10 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mic, Square, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Mic, Square, AlertCircle, CheckCircle, Loader2, Info } from 'lucide-react';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useAuth } from '@/contexts/AuthContext';
-import SignInPrompt from './SignInPrompt';
 
 interface SpeechRecorderProps {
   onTranscriptionComplete: (transcription: string) => void;
@@ -28,16 +27,6 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
     stopListening,
     resetTranscript,
   } = useSpeechRecognition();
-
-  // If user is not signed in, show sign-in prompt
-  if (!user) {
-    return (
-      <SignInPrompt 
-        title="Sign in to record"
-        description="Sign in with Google to start recording your daily reflections. Your data is privately stored in your own Google Drive."
-      />
-    );
-  }
 
   const handleToggleRecording = () => {
     if (isListening) {
@@ -67,7 +56,7 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               Speech recognition is not supported in this browser. 
-              Please use Chrome, Edge, or Safari for the best experience.
+              Please use <strong>Chrome</strong>, <strong>Edge</strong>, or <strong>Safari</strong> for the best experience.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -83,12 +72,21 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
           Record Your Day
         </CardTitle>
         <CardDescription>
-          Tap to start recording. Uses your device's built-in speech recognition.
+          Uses your device's built-in speech recognition for fast, accurate transcription
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {!user && (
+          <Alert className="bg-primary/10 border-primary/20">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-primary">
+              Sign in with Google to save your recordings to your private cloud storage.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {error && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -119,7 +117,7 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
         
         {isListening && (
           <div className="text-center fade-in space-y-2">
-            <Badge variant="secondary" className="animate-pulse">
+            <Badge variant="secondary" className="animate-pulse bg-primary/20 text-primary">
               <Loader2 className="w-3 h-3 mr-1 animate-spin" />
               Listening... Speak now
             </Badge>
@@ -131,10 +129,10 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
 
         {displayText && (
           <div className="mt-4 p-4 bg-muted/50 rounded-lg border border-border/50 max-h-40 overflow-y-auto">
-            <p className="text-sm text-foreground">
+            <p className="text-sm text-foreground leading-relaxed">
               {transcript}
               {interimTranscript && (
-                <span className="text-muted-foreground italic"> {interimTranscript}</span>
+                <span className="text-primary/70 italic"> {interimTranscript}</span>
               )}
             </p>
           </div>
@@ -147,6 +145,12 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
               Recording ready for analysis
             </Badge>
           </div>
+        )}
+
+        {!isListening && !transcript && !error && (
+          <p className="text-center text-xs text-muted-foreground">
+            Tap the microphone to start recording. Your browser will ask for microphone permission.
+          </p>
         )}
       </CardContent>
     </Card>
