@@ -24,37 +24,49 @@ export const useSpeechRecognition = (): UseSpeechRecognitionResult => {
   
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef('');
+  const isListeningRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
   const isSupported = !!SpeechRecognition;
 
-  useEffect(() => {
+  const initRecognition = useCallback(() => {
     if (!SpeechRecognition) {
-      setError('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
-      return;
+      return null;
     }
 
     const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
-
-    // Configuration for robust recognition
+    
+    // Configuration for robust recognition using device's built-in transcriber
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = navigator.language || 'en-US'; // Use device language
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setIsListening(true);
       setError(null);
+      retryCountRef.current = 0;
+      console.log('Speech recognition started');
     };
 
     recognition.onend = () => {
-      setIsListening(false);
+      console.log('Speech recognition ended, isListeningRef:', isListeningRef.current);
+      
       // Auto-restart if still meant to be listening
-      if (recognitionRef.current?.shouldContinue) {
-        try {
-          recognition.start();
-        } catch (e) {
-          // Already started
-        }
+      if (isListeningRef.current && retryCountRef.current < maxRetries) {
+        retryCountRef.current++;
+        console.log(`Auto-restarting speech recognition (attempt ${retryCountRef.current})`);
+        setTimeout(() => {
+          if (isListeningRef.current && recognitionRef.current) {
+            try {
+              recognitionRef.current.start();
+            } catch (e) {
+              console.log('Already started or error:', e);
+            }
+          }
+        }, 100);
+      } else {
+        setIsListening(false);
       }
     };
 
@@ -63,34 +75,42 @@ export const useSpeechRecognition = (): UseSpeechRecognitionResult => {
       
       switch (event.error) {
         case 'no-speech':
-          // Don't show error, just continue listening
+          // This is normal - just means silence was detected
+          // Don't show error, recognition will auto-restart
           break;
         case 'audio-capture':
-          setError('No microphone found. Please check your audio settings.');
+          setError('No microphone found. Please check your audio settings and allow microphone access.');
           setIsListening(false);
+          isListeningRef.current = false;
           break;
         case 'not-allowed':
-          setError('Microphone access denied. Please allow microphone access.');
+          setError('Microphone access denied. Please click the lock icon in your browser and allow microphone access, then try again.');
           setIsListening(false);
+          isListeningRef.current = false;
           break;
         case 'network':
-          setError('Network error. Please check your connection.');
-          // Try to restart
-          setTimeout(() => {
-            if (recognitionRef.current?.shouldContinue) {
-              try {
-                recognition.start();
-              } catch (e) {
-                // Already started
-              }
-            }
-          }, 1000);
+          // Network errors are common - try to recover silently
+          console.log('Network error in speech recognition, will auto-restart');
+          if (retryCountRef.current >= maxRetries) {
+            setError('Network error. Speech recognition requires an internet connection. Please check your connection and try again.');
+            setIsListening(false);
+            isListeningRef.current = false;
+          }
           break;
         case 'aborted':
-          // User or system aborted, no error message needed
+          // User or system aborted - this is normal when stopping
+          break;
+        case 'service-not-allowed':
+          setError('Speech recognition service is not available. Please try using Chrome or Edge browser.');
+          setIsListening(false);
+          isListeningRef.current = false;
           break;
         default:
-          setError(`Recognition error: ${event.error}`);
+          if (retryCountRef.current >= maxRetries) {
+            setError(`Speech recognition error: ${event.error}. Please try again.`);
+            setIsListening(false);
+            isListeningRef.current = false;
+          }
       }
     };
 
@@ -117,62 +137,95 @@ export const useSpeechRecognition = (): UseSpeechRecognitionResult => {
       setInterimTranscript(interimText);
     };
 
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.shouldContinue = false;
-        recognitionRef.current.abort();
-      }
-    };
+    return recognition;
   }, []);
 
-  const startListening = useCallback(() => {
-    if (!recognitionRef.current) {
-      setError('Speech recognition not initialized');
+  useEffect(() => {
+    if (!SpeechRecognition) {
+      setError('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari for the best experience.');
       return;
     }
 
+    recognitionRef.current = initRecognition();
+
+    return () => {
+      isListeningRef.current = false;
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {
+          // Ignore
+        }
+      }
+    };
+  }, [initRecognition]);
+
+  const startListening = useCallback(() => {
     setError(null);
     finalTranscriptRef.current = '';
     setTranscript('');
     setInterimTranscript('');
-    recognitionRef.current.shouldContinue = true;
+    retryCountRef.current = 0;
+    isListeningRef.current = true;
+
+    // Re-initialize if needed
+    if (!recognitionRef.current) {
+      recognitionRef.current = initRecognition();
+    }
+
+    if (!recognitionRef.current) {
+      setError('Speech recognition not available');
+      return;
+    }
 
     try {
       recognitionRef.current.start();
     } catch (e: any) {
       if (e.name === 'InvalidStateError') {
         // Already started, stop and restart
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (stopError) {
+          // Ignore
+        }
         setTimeout(() => {
-          try {
-            recognitionRef.current.start();
-          } catch (err) {
-            setError('Failed to start recognition');
+          if (isListeningRef.current) {
+            try {
+              recognitionRef.current?.start();
+            } catch (err) {
+              setError('Failed to start speech recognition. Please refresh and try again.');
+            }
           }
         }, 100);
       } else {
-        setError('Failed to start speech recognition');
+        setError('Failed to start speech recognition. Please ensure microphone access is allowed.');
       }
     }
-  }, []);
+  }, [initRecognition]);
 
   const stopListening = useCallback(() => {
+    isListeningRef.current = false;
+    setIsListening(false);
+    
     if (recognitionRef.current) {
-      recognitionRef.current.shouldContinue = false;
-      recognitionRef.current.stop();
-      setIsListening(false);
-      
-      // Finalize transcript
-      const finalText = finalTranscriptRef.current.trim();
-      setTranscript(finalText);
-      setInterimTranscript('');
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore
+      }
     }
+    
+    // Finalize transcript
+    const finalText = finalTranscriptRef.current.trim();
+    setTranscript(finalText);
+    setInterimTranscript('');
   }, []);
 
   const resetTranscript = useCallback(() => {
     finalTranscriptRef.current = '';
     setTranscript('');
     setInterimTranscript('');
+    setError(null);
   }, []);
 
   return {

@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mic, Pause, AlertCircle, CheckCircle } from 'lucide-react';
+import { Mic, Square, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useAuth } from '@/contexts/AuthContext';
+import SignInPrompt from './SignInPrompt';
 
 interface SpeechRecorderProps {
   onTranscriptionComplete: (transcription: string) => void;
@@ -15,6 +17,7 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
   onTranscriptionComplete, 
   disabled = false 
 }) => {
+  const { user } = useAuth();
   const {
     transcript,
     interimTranscript,
@@ -25,6 +28,16 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
     stopListening,
     resetTranscript,
   } = useSpeechRecognition();
+
+  // If user is not signed in, show sign-in prompt
+  if (!user) {
+    return (
+      <SignInPrompt 
+        title="Sign in to record"
+        description="Sign in with Google to start recording your daily reflections. Your data is privately stored in your own Google Drive."
+      />
+    );
+  }
 
   const handleToggleRecording = () => {
     if (isListening) {
@@ -70,7 +83,7 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
           Record Your Day
         </CardTitle>
         <CardDescription>
-          Share your thoughts, achievements, and reflections
+          Tap to start recording. Uses your device's built-in speech recognition.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -93,9 +106,10 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
               onClick={handleToggleRecording}
               disabled={disabled}
               className="w-20 h-20 rounded-full"
+              aria-label={isListening ? "Stop recording" : "Start recording"}
             >
               {isListening ? (
-                <Pause className="w-8 h-8" />
+                <Square className="w-8 h-8 fill-current" />
               ) : (
                 <Mic className="w-8 h-8" />
               )}
@@ -104,10 +118,14 @@ const SpeechRecorder: React.FC<SpeechRecorderProps> = ({
         </div>
         
         {isListening && (
-          <div className="text-center fade-in">
+          <div className="text-center fade-in space-y-2">
             <Badge variant="secondary" className="animate-pulse">
-              🎙️ Listening... Speak now
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              Listening... Speak now
             </Badge>
+            <p className="text-xs text-muted-foreground">
+              Tap the button again to stop recording
+            </p>
           </div>
         )}
 
