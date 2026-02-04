@@ -13,6 +13,7 @@ import SpeechRecorder from "@/components/SpeechRecorder";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import UserMenu from "@/components/UserMenu";
 import { extractTasksFromTranscription, ExtractedTask } from "@/utils/audioTaskExtractor";
+import SignInPrompt from "@/components/SignInPrompt";
 import { useUsageLimits } from "@/hooks/useUsageLimits";
 import LimitDialog from "@/components/LimitDialog";
 import UsageIndicator from "@/components/UsageIndicator";
@@ -334,56 +335,70 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="upload" className="space-y-6">
-              <Card className="glass float shadow-medium border-white/20">
-                <CardHeader className="text-center">
-                  <CardTitle className="flex items-center justify-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-primary" />
-                    Type Your Thoughts
-                  </CardTitle>
-                  <CardDescription>
-                    Write about your day, tasks, and reflections
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    placeholder="What did you accomplish today? What are your plans? Any meetings or deadlines coming up?"
-                    value={currentTranscription}
-                    onChange={(e) => setCurrentTranscription(e.target.value)}
-                    className="min-h-32 bg-background/50 border-white/20"
-                  />
-                  {currentTranscription && (
-                    <div className="mt-4 text-center fade-in">
-                      <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Ready for analysis
-                      </Badge>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              {!user ? (
+                <SignInPrompt 
+                  title="Sign in to type your thoughts"
+                  description="Sign in with Google to start journaling. Your data is privately stored in your own Google Drive."
+                />
+              ) : (
+                <Card className="glass float shadow-medium border-white/20">
+                  <CardHeader className="text-center">
+                    <CardTitle className="flex items-center justify-center gap-2">
+                      <MessageSquare className="w-5 h-5 text-primary" />
+                      Type Your Thoughts
+                    </CardTitle>
+                    <CardDescription>
+                      Write about your day, tasks, and reflections
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Textarea
+                      placeholder="What did you accomplish today? What are your plans? Any meetings or deadlines coming up?"
+                      value={currentTranscription}
+                      onChange={(e) => setCurrentTranscription(e.target.value)}
+                      className="min-h-32 bg-background/50 border-white/20"
+                    />
+                    {currentTranscription && (
+                      <div className="mt-4 text-center fade-in">
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Ready for analysis
+                        </Badge>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
 
           {/* Analysis Button */}
           <div className="text-center my-8">
-            <Button
-              onClick={handleAnalyze}
-              disabled={!currentTranscription || isAnalyzing}
-              size="lg"
-              className="bg-gradient-primary hover:shadow-glow transition-all duration-300 px-8 py-4 text-lg font-semibold"
-            >
-              {isAnalyzing ? (
-                <>
-                  <RotateCcw className="w-5 h-5 mr-2 animate-spin" />
-                  Analyzing Your Day...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Analyze My Day
-                </>
-              )}
-            </Button>
+            {!user ? (
+              <div className="space-y-3">
+                <p className="text-muted-foreground text-sm">Sign in to analyze your day</p>
+                <GoogleSignInButton size="lg" variant="gradient" />
+              </div>
+            ) : (
+              <Button
+                onClick={handleAnalyze}
+                disabled={!currentTranscription || isAnalyzing}
+                size="lg"
+                className="bg-gradient-primary hover:shadow-glow transition-all duration-300 px-8 py-4 text-lg font-semibold"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <RotateCcw className="w-5 h-5 mr-2 animate-spin" />
+                    Analyzing Your Day...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Analyze My Day
+                  </>
+                )}
+              </Button>
+            )}
           </div>
 
           {/* Analysis Results */}
