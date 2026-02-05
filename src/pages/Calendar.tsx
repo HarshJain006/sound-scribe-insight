@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Calendar as CalendarIcon, Lock } from 'lucide-react';
 import CalendarView from '@/components/CalendarView';
-import { addDays, addWeeks } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CalendarTask {
   id: string;
@@ -15,40 +15,7 @@ interface CalendarTask {
 }
 
 const Calendar = () => {
-  // Mock user state - replace with actual auth state when Supabase is connected
-  const isSignedIn = true;
-  
-  // Mock tasks data - in real app, this would come from Supabase
-  const [tasks, setTasks] = useState<CalendarTask[]>([
-    {
-      id: '1',
-      text: 'Team meeting with stakeholders',
-      date: new Date(),
-      completed: false,
-      priority: 'high'
-    },
-    {
-      id: '2', 
-      text: 'Review presentation slides',
-      date: addDays(new Date(), 1),
-      completed: false,
-      priority: 'medium'
-    },
-    {
-      id: '3',
-      text: 'Follow up on client feedback',
-      date: addDays(new Date(), 2),
-      completed: true,
-      priority: 'high'
-    },
-    {
-      id: '4',
-      text: 'Plan weekend project',
-      date: addWeeks(new Date(), 1),
-      completed: false,
-      priority: 'low'
-    }
-  ]);
+  const { user } = useAuth();
 
   const handleTaskSelect = (task: CalendarTask) => {
     console.log('Selected task:', task);
@@ -60,12 +27,12 @@ const Calendar = () => {
     // Handle date selection
   };
 
-  if (!isSignedIn) {
+  if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-4">
-        <Card className="glass-effect border-white/10 max-w-md w-full">
+      <div className="min-h-screen flex items-center justify-center p-4 safe-area-inset">
+        <Card className="glass border-border/20 max-w-md w-full">
           <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+            <div className="mx-auto w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-4 touch-manipulation">
               <Lock className="w-8 h-8 text-primary" />
             </div>
             <CardTitle className="text-2xl">Sign In Required</CardTitle>
@@ -76,14 +43,14 @@ const Calendar = () => {
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-3">
               <Link to="/signin" className="w-full">
-                <Button className="w-full">Sign In</Button>
+                <Button className="w-full h-12 text-base touch-manipulation">Sign In</Button>
               </Link>
               <Link to="/login" className="w-full">
-                <Button variant="outline" className="w-full border-white/20">Create Account</Button>
+                <Button variant="outline" className="w-full h-12 text-base border-border/20 touch-manipulation">Create Account</Button>
               </Link>
             </div>
             <div className="text-center">
-              <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors touch-manipulation py-2">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Home
               </Link>
@@ -95,26 +62,25 @@ const Calendar = () => {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--gradient-background)' }}>
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen safe-area-inset" style={{ background: 'var(--gradient-background)' }}>
+      <div className="container mx-auto px-4 py-4 pb-20 md:py-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-4 md:mb-8">
             <div className="flex items-center gap-4">
-              <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors touch-manipulation py-2">
                 <ArrowLeft className="h-5 w-5 mr-2" />
-                Back
+                <span className="hidden sm:inline">Back</span>
               </Link>
               <div className="flex items-center gap-2">
-                <CalendarIcon className="h-8 w-8 text-primary" />
-                <h1 className="text-3xl font-bold gradient-text">Smart Calendar</h1>
+                <CalendarIcon className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+                <h1 className="text-xl md:text-3xl font-bold gradient-text">Calendar</h1>
               </div>
             </div>
           </div>
 
           {/* Split-Screen Calendar Layout */}
           <CalendarView 
-            tasks={tasks}
             onTaskSelect={handleTaskSelect}
             onDateSelect={handleDateSelect}
           />
